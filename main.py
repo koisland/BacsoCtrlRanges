@@ -1,17 +1,34 @@
 import os
 import re
+import cv2
+import pprint
 import datetime
 import requests
 import logging
 import pdf2image
 import pytesseract
 from bs4 import BeautifulSoup
+
 from config import Config
 
 logging.basicConfig(filename="report.log", level=logging.INFO)
 
 
 class eSCCReport(Config):
+
+    def __init__(self, save_as_pdf=True):
+        self.save_as_pdf = save_as_pdf
+
+        self._clear_files()
+
+    def _clear_files(self, time_interval=14):
+        """
+        Clear stored reports older than time interval.
+        Called on cls init
+        :param time_interval: time interval to save from current date in days
+        :return: None
+        """
+        pass
 
     @staticmethod
     def raw_content(url, content_type="content"):
@@ -29,24 +46,44 @@ class eSCCReport(Config):
 
     @property
     def recent_pdf_report(self):
+        curr_date = datetime.datetime.strftime(datetime.datetime.now(), "%m_%d_%y")
+        file_path = os.path.join(self.RES_PATH, f"original_report_{curr_date}.pdf")
+
+        # return file path if already exists
+        if os.path.exists(file_path):
+            return file_path
+
         bs = BeautifulSoup(self.raw_content(self.URL), "html.parser")
 
-        # all archived report under div - pagecontent id
-        all_reports = bs.find("div", {"id": "pagecontsent"})
+        # all recent archived report under table elements with class inpagebtn
+        all_report_elems = bs.find_all("td", {"class": "inpagebtn"})
 
-        # find returns first item matching query. take link from <a> tag
+        # loop through found elements and grab button links
         try:
-            first_report_url = all_reports.find("li").a['href']
+            for report_elem in all_report_elems:
+                # strong tag for categories of results on eurofins website
+                elem_name_query = report_elem.a.find("strong")
+
+                # check if something found and then if "somatic cells" in name
+                if elem_name_query and "Somatic Cells" in elem_name_query:
+                    recent_report_purl = report_elem.a.get("href")
+
+                    # write bytes pdf to file
+                    with open(file_path, "wb") as fobj:
+                        fobj.write(self.raw_content(recent_report_url, content_type="content"))
+
+                    return file_path
+
         except AttributeError as ex:
             logging.error("Eurofins site must have undergone design change. Element not found.")
             raise Exception(f"Page element not found on Eurofins site. {ex}")
 
-        # get pdf as bytes
-        first_report_pdf = self.raw_content(first_report_url, content_type="content")
-
-    def cvt_report(self):
+    @property
+    def recent_txt_report(self):
         # returns list of images from pdf so take first image
-        img = pdf2image.convert_from_bytes(self.recent_pdf_report)[0]
+        img = pdf2image.convert_from_path(self.recent_pdf_report)[0]
+
+        cv2.imwrite(os.path.join(self.RES_PATH, ""))
 
         # convert image to string
         img_str = pytesseract.image_to_string(img)
@@ -54,15 +91,21 @@ class eSCCReport(Config):
         if res := re.search(self.REGEX_PATTERN, img_str):
             logging.info("Text pattern found in pdf image.")
 
-            return dict(zip(["Set Number", "Date", "Low", "Low-Medium", "Medium-High", "High"],
+            data = dict(zip(["Set Number", "Date", "Low", "Low-Medium", "Medium-High", "High"],
                             res.groups()))
+            report = self._fmt_report(img, data)
+            return report
         else:
             raise Exception("Text not found.")
 
-    def fmt_report(self):
-        pass
+    def _fmt_report(self, img, data):
+        return
 
 
-escc_report = eSCCReport()
-print(escc_report.recent_pdf_report)
-# print(res)
+def main():
+    escc_report = eSCCReport(save_as_pdf=True)
+    print(escc_report.recent_txt_report)
+
+
+if __name__ == "__main__":
+    main()

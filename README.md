@@ -1,1 +1,2 @@
 # eSCCStandardsReport
+Gets eSCC standards report from Eurofins website and auto-calculates the allowed ranges described in the [NCIMS 2400s](http://ncims.org/wp-content/uploads/2018/05/2400a-10-Foss-BacSomatic-Rev-04-18.pdf#page=7). Formats as report on original report and saves as image.
