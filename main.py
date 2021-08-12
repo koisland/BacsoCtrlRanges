@@ -5,7 +5,7 @@ import datetime
 import requests
 import logging
 import pdf2image
-import pytesseract
+import pdftotext
 from PIL import ImageDraw, ImageFont
 from bs4 import BeautifulSoup
 
@@ -110,17 +110,20 @@ class SCCReport(Config):
         """
         file_path = os.path.join(self.RES_PATH, f"original_report_{self.curr_date}.txt")
 
-        img_path, img = self.recent_img_report
+        pdf_path = self.recent_pdf_report
 
-        # convert image to string
-        img_str = pytesseract.image_to_string(img)
+        with open(pdf_path, "rb") as fobj:
+            pdf_str = "".join(pdftotext.PDF(fobj))
 
-        if res := re.search(self.REGEX_PATTERN, img_str):
+        if res := re.search(self.REGEX_PATTERN, pdf_str):
             data = dict(zip(["Set Number", "Date", "Low", "Low-Medium", "Medium-High", "High"],
                             res.groups()))
             with open(file_path, "w") as fobj:
                 for k, v in data.items():
                     fobj.write(f"{k}: {v}\n")
+
+            if not self.save_res:
+                os.remove(pdf_path)
 
             return file_path, data
         else:
@@ -179,11 +182,11 @@ class SCCReport(Config):
 def main():
     escc_standards = SCCReport(save_res=False)
 
-    print(escc_standards.recent_pdf_report)
-    print(escc_standards.recent_img_report[0])
-    print(escc_standards.recent_txt_report[0])
+    # print(escc_standards.recent_pdf_report)
+    # print(escc_standards.recent_img_report[0])
+    # print(escc_standards.recent_txt_report[0])
 
-    # print(escc_standards.report)
+    print(escc_standards.report)
 
 
 if __name__ == "__main__":

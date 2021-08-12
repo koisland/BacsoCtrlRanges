@@ -1,4 +1,5 @@
 import os
+import re
 import numpy as np
 
 
@@ -7,7 +8,9 @@ class Config:
     RES_PATH = os.path.join(os.path.dirname(__file__), "resources")
     OUT_PATH = os.path.join(os.path.dirname(__file__), "output")
     ST_CATEGS_HTML_ELEM_ARGS = ("td", {"class": "inpagebtn"})
-    REGEX_PATTERN = r"Set:\s(\d{6})\sDate:\s(\d{2}/\d{2}/\d{2})\n(\d+)\s(\d+)\s(\d+)\s(\d+)\s"
+    REGEX_PATTERN = re.compile(r"Set:\s+(\d{6})\s+Date:\s+(\d{2}/\d{2}/\d{2})\n"
+                               r"\s+LOW\s+LOW/MED\s+MED/HI\s+HIGH\n"
+                               r"\s+(\d{2,3})\s+(\d{2,3})\s+(\d{3,4})\s+(\d{3,4})")
 
     PCT_LBL_Y = 800
     # 1st array is distance between each label. 2nd array is adjustment by some num of pixels.
