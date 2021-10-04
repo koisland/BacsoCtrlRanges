@@ -1,0 +1,17 @@
+beautifulsoup4
+certifi
+chardet
+charset-normalizer
+idna
+numpy
+pymupdf
+pdfminer-six
+pdfplumber
+pillow
+pycryptodome
+pymupdf
+requests
+sortedcontainers
+soupsieve
+urllib3
+wand

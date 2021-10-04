@@ -1,6 +1,0 @@
-Set Number: 210130
-Date: 07/26/21
-Low: 157
-Low-Medium: 389
-Medium-High: 664
-High: 974
