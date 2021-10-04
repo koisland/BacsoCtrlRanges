@@ -1,6 +1,6 @@
 import os
 import tempfile
-from os.path import dirname as up
+import re
 import numpy as np
 
 

@@ -22,7 +22,3 @@ def main():
     else:
         return
     print(path)
-
-
-if __name__ == "__main__":
-    main()
