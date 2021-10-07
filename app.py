@@ -8,8 +8,12 @@ s3 = boto3.resource('s3')
 client = boto3.client('s3')
 
 
-def handler(event, context):
-    option = event.get("option")
+def handler(event, _):
+    try:
+        params = event.get("rawQueryString", "option=rpt")
+        option = params.split("=")[1]
+    except (KeyError, IndexError):
+        option = "rpt"
     bucket = s3.Bucket("esccrpt")
 
     rpt = SCCReport()
@@ -18,8 +22,10 @@ def handler(event, context):
         path = rpt.report
     elif option == "opdf":
         path = rpt.recent_pdf_report
-    else:
+    elif option == "otxt":
         path = rpt.recent_txt_report[0]
+    else:
+        path = rpt.report
 
     # get filename
     _, fname = os.path.split(path)

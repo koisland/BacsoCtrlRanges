@@ -16,7 +16,7 @@ from config import Config
 class SCCReport(Config):
 
     @staticmethod
-    def raw_content(url, content_type="bytes"):
+    def get_content(url, content_type="bytes"):
         """
         Make request to url and pull content
         :param url: (str) url to request
@@ -57,7 +57,7 @@ class SCCReport(Config):
         if os.path.exists(pdf_path):
             return pdf_path
 
-        bs = BeautifulSoup(self.raw_content(self.URL), "html.parser")
+        bs = BeautifulSoup(self.get_content(self.URL), "html.parser")
 
         # all recent archived report under table elements with class inpagebtn
         all_report_elems = bs.find_all(self.ST_CATEGS_HTML_ELEM_ARGS)
@@ -71,7 +71,7 @@ class SCCReport(Config):
                 # check if something found and then if "somatic cells" in name
                 if elem_name_query and "Somatic Cells" in elem_name_query:
                     recent_report_url = report_elem.a.get("href")
-                    bytes_pdf = self.raw_content(recent_report_url, content_type="bytes")
+                    bytes_pdf = self.get_content(recent_report_url, content_type="bytes")
 
                     with open(pdf_path, "wb") as fobj:
                         fobj.write(bytes_pdf)
@@ -116,7 +116,7 @@ class SCCReport(Config):
     @property
     def recent_img_report(self):
         """
-
+        Convert pdf to image.
         :return: File path to img.
         """
         img_path = f"{self.original_fname}.png"
