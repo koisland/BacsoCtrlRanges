@@ -4,7 +4,9 @@
 
 Gets eSCC standards report from Eurofins website and auto-calculates the allowed ranges described in the [NCIMS 2400s](http://ncims.org/wp-content/uploads/2018/05/2400a-10-Foss-BacSomatic-Rev-04-18.pdf#page=7).
 
-![](docs/rpt.png)
+<p align="center">
+	<img width="60%" src="https://raw.githubusercontent.com/koisland/eSCCStandardsReport/main/docs/rpt.png" />
+</p>
 
 ### **Options:**
 
@@ -23,7 +25,7 @@ Gets eSCC standards report from Eurofins website and auto-calculates the allowed
 ---
 >**https://rmpg3zf4oa.execute-api.us-west-1.amazonaws.com/default/sccrpt_docker**
 
-To generate other options, add ***?option=( rpt / opdf / otxt )*** to end of url.
+To generate other options, add ***?option=(rpt/opdf/otxt)*** to end of url.
 
 
 ### **Workflow**
