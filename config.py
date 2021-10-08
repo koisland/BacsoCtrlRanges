@@ -5,17 +5,15 @@ import numpy as np
 
 
 class Config:
-    SAVE_RES = False
-    BYTES_ONLY = True
-
     # save to temp dir
     OUT_PATH = tempfile.gettempdir()
 
     URL = "https://www.eurofinsus.com/food-testing/services/testing-services/dairy/calibration-standards-results/"
     ST_CATEGS_HTML_ELEM_ARGS = ("td", {"class": "inpagebtn"})
 
-    SET_REGEX_PATTERN = r"Set:\s(\d{6,7})\sDate:\s(\d{2}/\d{2}/\d{2})\n"
-    SET_VAL_REGEX_PATTERN = r"LOW LOW/MED MED/HI HIGH\n(\d{3})\s(\d{3})\s(\d{3,4})\s(\d{3,4})"
+    URL_SET_REGEX = re.compile("escc-set(\d{6})")
+    PDF_SET_REGEX = re.compile("Set:\s(\d{6,7})\sDate:\s(\d{2}/\d{2}/\d{2})\n")
+    PDF_SET_VAL_REGEX = re.compile("LOW LOW/MED MED/HI HIGH\n(\d{3})\s(\d{3})\s(\d{3,4})\s(\d{3,4})")
     SET_REC_MSG = "Received:     /    /    \n\n" \
                   "By:                     \n\n" \
                   "TC:          °C         \n\n"

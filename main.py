@@ -13,12 +13,12 @@ def main():
 
     rpt = SCCReport()
     args = vars(ap.parse_args())
+    path = None
     if args["report"]:
         path = rpt.report
     elif args["og_pdf"]:
         path = rpt.recent_pdf_report
     elif args["og_txt"]:
         path = rpt.recent_txt_report[0]
-    else:
-        return
+
     print(path)

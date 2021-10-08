@@ -30,28 +30,27 @@ def handler(event, _):
     # get filename
     _, fname = os.path.split(path)
 
-    if rpt.BYTES_ONLY:
-        # convert to bytes, send file content, and remove.
-        with open(path, 'rb') as fobj:
-            client.upload_fileobj(fobj, bucket.name, fname)
+    # convert to bytes, send file content, and remove.
+    with open(path, 'rb') as fobj:
+        client.upload_fileobj(fobj, bucket.name, fname)
 
-        # remove file from tmp/___
-        os.remove(path)
+    # remove created files from tmp/___
+    rpt.cleanup()
 
-        # generate presigned url for temp access to s3 file.
-        url = client.generate_presigned_url(
-            ClientMethod='get_object',
-            Params={
-                'Bucket': bucket.name,
-                'Key': fname
-            },
-            ExpiresIn=604800  # 7 days
-        )
+    # generate presigned url for temp access to s3 file.
+    url = client.generate_presigned_url(
+        ClientMethod='get_object',
+        Params={
+            'Bucket': bucket.name,
+            'Key': fname
+        },
+        ExpiresIn=604800  # 7 days
+    )
 
-        # redirect url
-        return {
-            'statusCode': 302,
-            'headers': {
-                'Location': url
-            }
+    # redirect url
+    return {
+        'statusCode': 302,
+        'headers': {
+            'Location': url
         }
+    }

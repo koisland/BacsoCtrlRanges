@@ -11,7 +11,7 @@ Gets eSCC standards report from Eurofins website and auto-calculates the allowed
 ### **Options:**
 
 ---
-* [Report (rpt)](https://rmpg3zf4oa.execute-api.us-west-1.amazonaws.com/default/sccrpt_docker?option=rpt)
+* [Annotated Report (rpt)](https://rmpg3zf4oa.execute-api.us-west-1.amazonaws.com/default/sccrpt_docker?option=rpt)
     * **Default**
     * Newest Eurofins SCC control data as annotated report.
         * Includes valid SCC ranges and section for receiving information.
@@ -45,5 +45,6 @@ To generate other options, add ***?option=(rpt/opdf/otxt)*** to end of url.
 ---
 * [ ] *Domain Name*
     * Custom domain name for easier access/memorization.
-* [ ] *Optimization*
+* [X] *Optimization*
     * A lot of repeated work done so re-do some functions in `sccrpt.report`.
+    * FIX: Save files until end of function and then cleanup.

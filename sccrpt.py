@@ -15,6 +15,23 @@ from config import Config
 
 class SCCReport(Config):
 
+    def __init__(self):
+        self.set_number = None
+
+        # declare dict to store paths
+        self.paths = {}
+
+        # create initial pdf so can be referenced in other functions
+        init_pdf = self.recent_pdf_report
+
+    def cleanup(self):
+        """
+        Cleanup generated intermediate files/output.
+        :return: None
+        """
+        for _, path in self.paths.items():
+            os.remove(path)
+
     @staticmethod
     def get_content(url, content_type="bytes"):
         """
@@ -42,20 +59,15 @@ class SCCReport(Config):
         return datetime.datetime.strftime(datetime.datetime.now(), "%m_%d_%y")
 
     @property
-    def original_fname(self):
-        return os.path.join(self.OUT_PATH, f"original_report")
-
-    @property
     def recent_pdf_report(self):
         """
         Generate a pdf report of most recent SCC data.
         :return: File path to pdf
         """
-        pdf_path = f"{self.original_fname}.pdf"
 
         # return file path if already exists
-        if os.path.exists(pdf_path):
-            return pdf_path
+        if "pdf" in self.paths:
+            return self.paths["pdf"]
 
         bs = BeautifulSoup(self.get_content(self.URL), "html.parser")
 
@@ -71,10 +83,23 @@ class SCCReport(Config):
                 # check if something found and then if "somatic cells" in name
                 if elem_name_query and "Somatic Cells" in elem_name_query:
                     recent_report_url = report_elem.a.get("href")
+
                     bytes_pdf = self.get_content(recent_report_url, content_type="bytes")
+
+                    # get set number from url
+                    if set_number := re.search(self.URL_SET_REGEX, recent_report_url):
+                        self.set_number = set_number.groups()[0]
+
+                        # declare pdf path with set number
+                        pdf_path = os.path.join(self.OUT_PATH, f'orig_report_{self.set_number}.pdf')
+                    else:
+                        raise Exception("Could not parse set number from url.")
 
                     with open(pdf_path, "wb") as fobj:
                         fobj.write(bytes_pdf)
+
+                        # add path
+                        self.paths["pdf"] = pdf_path
                         return pdf_path
 
         except AttributeError as ex:
@@ -86,32 +111,42 @@ class SCCReport(Config):
         Generates a text doc of most recent SCC data.
         :return: File path to text file AND text as dict
         """
-        file_path = f"{self.original_fname}.txt"
 
-        pdf_src = self.recent_pdf_report
+        if "txt" in self.paths:
+            return self.paths["txt"]
+
+        text_path = os.path.join(self.OUT_PATH, f'report_{self.set_number}.txt')
 
         # convert image to string
-        with pdfplumber.open(pdf_src) as pdf:
+        with pdfplumber.open(self.paths["pdf"]) as pdf:
             first_page = pdf.pages[0]
             pdf_text = first_page.extract_text()
 
             # search for vals and info
-            set_info = re.search(self.SET_REGEX_PATTERN, pdf_text)
-            set_vals = re.search(self.SET_VAL_REGEX_PATTERN, pdf_text)
+            set_info = re.search(self.PDF_SET_REGEX, pdf_text)
+            set_vals = re.search(self.PDF_SET_VAL_REGEX, pdf_text)
+
+            # convert values to int and get ranges
+            pcts, _, bounds = self.gen_scc_ranges([int(val) for val in set_vals.groups()])
 
             if set_info and set_vals:
                 data = dict(zip(["Set Number", "Date", "Low", "Low-Medium", "Medium-High", "High"],
                                 set_info.groups() + set_vals.groups()))
-                with open(file_path, "w") as fobj:
-                    for k, v in data.items():
-                        fobj.write(f"{k}: {v}\n")
+                with open(text_path, "w") as fobj:
+                    fobj.write(f"Set Number: {data.get('Set Number')}\n")
+                    fobj.write(f"Date: {data.get('Date')}\n\n")
+                    # write values and bounds
+                    scc_vals = list(data.items())[2:]
+                    for (k, v), pct, (lbound, ubound) in zip(scc_vals, pcts, bounds):
+                        fobj.write(f"[{k}]\n"
+                                   f"   SCC: {v}\n"
+                                   f"   Range ({pct * 100}%): {lbound} - {ubound}\n")
             else:
                 raise Exception("Text not found.")
 
-        if not self.SAVE_RES:
-            os.remove(pdf_src)
-
-        return file_path, data
+        # add text path
+        self.paths["txt"] = text_path
+        return text_path, data
 
     @property
     def recent_img_report(self):
@@ -119,22 +154,20 @@ class SCCReport(Config):
         Convert pdf to image.
         :return: File path to img.
         """
-        img_path = f"{self.original_fname}.png"
-        if os.path.exists(img_path):
-            return img_path
 
-        pdf_path = self.recent_pdf_report
-        with fitz.open(pdf_path) as pdf:
+        if "img" in self.paths:
+            return self.paths["img"]
+
+        img_path = os.path.join(self.OUT_PATH, f'orig_report_{self.set_number}.png')
+
+        with fitz.open(self.paths["pdf"]) as pdf:
             # create matrix for pixmap and increase resolution
             mat = fitz.Matrix(2, 2)
             page = pdf.loadPage(0)
             pic = page.getPixmap(matrix=mat)
             pic.writePNG(img_path)
 
-        # remove if not saving resources
-        if not self.SAVE_RES:
-            os.remove(pdf_path)
-
+        self.paths["img"] = img_path
         return img_path
 
     def gen_scc_ranges(self, scc_vals):
@@ -151,7 +184,8 @@ class SCCReport(Config):
         pct_diff = pct_diff.astype(int)
         lower_bounds = scc_vals - pct_diff
         upper_bounds = scc_vals + pct_diff
-        return pcts, pct_diff, lower_bounds, upper_bounds
+        bounds = zip(lower_bounds, upper_bounds)
+        return pcts, pct_diff, list(bounds)
 
     @property
     def report(self):
@@ -160,12 +194,14 @@ class SCCReport(Config):
         Data pulled from Eurofins website. (See config.py)
         :return: File path to report
         """
-        rpt_path = os.path.join(self.OUT_PATH, f"report.png")
-        if os.path.exists(rpt_path):
-            return rpt_path
 
         img_path = self.recent_img_report
         txt_path, txt_data = self.recent_txt_report
+
+        if "rpt" in self.paths:
+            return self.path["rpt"]
+
+        rpt_path = os.path.join(self.OUT_PATH, f"report_{self.set_number}.png")
 
         data = list(txt_data.values())[2:]
 
@@ -176,13 +212,13 @@ class SCCReport(Config):
         img = Image.open(img_path, "r")
         d = ImageDraw.Draw(img)
 
-        pcts, pct_diff, lower_bounds, upper_bounds = self.gen_scc_ranges(scc_vals)
+        pcts, pct_diff, bounds = self.gen_scc_ranges(scc_vals)
 
         # add received date/time/analyst line
         d.text(self.DESC_LBL_X_Y, self.SET_REC_MSG, fill=(0, 0, 0), font=pct_lbl_font)
 
         # draw scc values on pic
-        for x, pct, diff, scc_lower, scc_upper in zip(self.PCT_LBL_X, pcts, pct_diff, lower_bounds, upper_bounds):
+        for x, pct, diff, (scc_lower, scc_upper) in zip(self.PCT_LBL_X, pcts, pct_diff, bounds):
             pct_str = f"{pct * 100}%"
             diff_str = f"({diff})"
             range_str = f"{scc_lower} — {scc_upper}"
@@ -192,12 +228,5 @@ class SCCReport(Config):
 
         img.save(rpt_path, "PNG")
 
-        if not self.SAVE_RES:
-            os.remove(txt_path)
-            os.remove(img_path)
-
+        self.paths["rpt"] = rpt_path
         return rpt_path
-
-
-
-
