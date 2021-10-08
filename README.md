@@ -15,10 +15,12 @@ Gets eSCC standards report from Eurofins website and auto-calculates the allowed
     * **Default**
     * Newest Eurofins SCC control data as annotated report.
         * Includes valid SCC ranges and section for receiving information.
+* [Text Report (otxt)](https://rmpg3zf4oa.execute-api.us-west-1.amazonaws.com/default/sccrpt_docker?option=otxt)
+    * Newest Eurofins SCC control data in text format.
+        * Includes valid SCC ranges.
 * [Original PDF (opdf)](https://rmpg3zf4oa.execute-api.us-west-1.amazonaws.com/default/sccrpt_docker?option=opdf)
     * Newest Eurofins SCC control data in pdf format.
-* [Original Text (otxt)](https://rmpg3zf4oa.execute-api.us-west-1.amazonaws.com/default/sccrpt_docker?option=otxt)
-    * Newest Eurofins SCC control data in text format.
+
 
 ### **AWS Lambda URL:**
 

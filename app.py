@@ -9,11 +9,14 @@ client = boto3.client('s3')
 
 
 def handler(event, _):
-    try:
-        params = event.get("rawQueryString", "option=rpt")
-        option = params.split("=")[1]
-    except (KeyError, IndexError):
-        option = "rpt"
+    # for cloudwatch log
+    print(event)
+
+    # default event.
+    default = {"queryStringParameters": {"option": "rpt"}}
+    params = event.get("queryStringParameters", default["queryStringParameters"])
+    option = params.get("option", "rpt")
+
     bucket = s3.Bucket("esccrpt")
 
     rpt = SCCReport()
