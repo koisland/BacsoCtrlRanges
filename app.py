@@ -26,7 +26,7 @@ def handler(event, _):
     elif option == "opdf":
         path = rpt.recent_pdf_report
     elif option == "otxt":
-        path = rpt.recent_txt_report[0]
+        path = rpt.recent_txt_report
     else:
         path = rpt.report
 

@@ -1,13 +1,12 @@
 import os
 import re
-import io
 import datetime
 import requests
 
 import fitz
 import pdfplumber
 import numpy as np
-from PIL import ImageDraw, ImageFont, Image
+from PIL import ImageDraw, Image
 from bs4 import BeautifulSoup
 
 from config import Config
@@ -105,6 +104,28 @@ class SCCReport(Config):
         except AttributeError as ex:
             raise Exception(f"Page element not found on Eurofins site. {ex}")
 
+    def get_text_data(self):
+        # convert image to string
+        with pdfplumber.open(self.paths["pdf"]) as pdf:
+            first_page = pdf.pages[0]
+            pdf_text = first_page.extract_text()
+
+            # search for vals and info
+            set_info = re.search(self.PDF_SET_REGEX, pdf_text)
+            set_date_info = re.search(self.PDF_SET_DATE_REGEX, pdf_text)
+            set_vals = re.search(self.PDF_SET_VAL_REGEX, pdf_text)
+
+            # convert values to int and get ranges
+            pcts, _, bounds = self.gen_scc_ranges([int(val) for val in set_vals.groups()])
+
+            if set_info and set_vals:
+                data = dict(zip(["Set Number", "Date", "Low", "Low-Medium", "Medium-High", "High"],
+                                set_info.groups() + set_date_info.groups() + set_vals.groups()))
+            else:
+                raise Exception("Text not found.")
+
+            return data, pcts, bounds
+
     @property
     def recent_txt_report(self):
         """
@@ -117,36 +138,21 @@ class SCCReport(Config):
 
         text_path = os.path.join(self.OUT_PATH, f'report_{self.set_number}.txt')
 
-        # convert image to string
-        with pdfplumber.open(self.paths["pdf"]) as pdf:
-            first_page = pdf.pages[0]
-            pdf_text = first_page.extract_text()
+        data, pcts, bounds = self.get_text_data()
 
-            # search for vals and info
-            set_info = re.search(self.PDF_SET_REGEX, pdf_text)
-            set_vals = re.search(self.PDF_SET_VAL_REGEX, pdf_text)
-
-            # convert values to int and get ranges
-            pcts, _, bounds = self.gen_scc_ranges([int(val) for val in set_vals.groups()])
-
-            if set_info and set_vals:
-                data = dict(zip(["Set Number", "Date", "Low", "Low-Medium", "Medium-High", "High"],
-                                set_info.groups() + set_vals.groups()))
-                with open(text_path, "w") as fobj:
-                    fobj.write(f"Set Number: {data.get('Set Number')}\n")
-                    fobj.write(f"Date: {data.get('Date')}\n\n")
-                    # write values and bounds
-                    scc_vals = list(data.items())[2:]
-                    for (k, v), pct, (lbound, ubound) in zip(scc_vals, pcts, bounds):
-                        fobj.write(f"[{k}]\n"
-                                   f"   SCC: {v}\n"
-                                   f"   Range ({pct * 100}%): {lbound} - {ubound}\n")
-            else:
-                raise Exception("Text not found.")
+        with open(text_path, "w") as fobj:
+            fobj.write(f"Set Number: {data.get('Set Number')}\n")
+            fobj.write(f"Date: {data.get('Date')}\n\n")
+            # write values and bounds
+            scc_vals = list(data.items())[2:]
+            for (k, v), pct, (lbound, ubound) in zip(scc_vals, pcts, bounds):
+                fobj.write(f"[{k}]\n"
+                           f"   SCC: {v}\n"
+                           f"   Range ({pct * 100}%): {lbound} - {ubound}\n")
 
         # add text path
         self.paths["txt"] = text_path
-        return text_path, data
+        return text_path
 
     @property
     def recent_img_report(self):
@@ -196,26 +202,24 @@ class SCCReport(Config):
         """
 
         img_path = self.recent_img_report
-        txt_path, txt_data = self.recent_txt_report
 
         if "rpt" in self.paths:
-            return self.path["rpt"]
+            return self.paths["rpt"]
 
         rpt_path = os.path.join(self.OUT_PATH, f"report_{self.set_number}.png")
 
-        data = list(txt_data.values())[2:]
+        data, _, _ = self.get_text_data()
 
         # convert dict into list of scc values into np arr
-        scc_vals = [int(scc) for scc in data]
+        scc_vals = [int(scc) for scc in list(data.values())[2:]]
 
-        pct_lbl_font = ImageFont.truetype("Helvetica-Bold-Font.ttf", size=30)
         img = Image.open(img_path, "r")
         d = ImageDraw.Draw(img)
 
         pcts, pct_diff, bounds = self.gen_scc_ranges(scc_vals)
 
         # add received date/time/analyst line
-        d.text(self.DESC_LBL_X_Y, self.SET_REC_MSG, fill=(0, 0, 0), font=pct_lbl_font)
+        d.text(self.DESC_LBL_X_Y, self.SET_REC_MSG, fill=(0, 0, 0), font=self.DESC_LBL_FONT)
 
         # draw scc values on pic
         for x, pct, diff, (scc_lower, scc_upper) in zip(self.PCT_LBL_X, pcts, pct_diff, bounds):
@@ -224,7 +228,7 @@ class SCCReport(Config):
             range_str = f"{scc_lower} — {scc_upper}"
 
             d.text((x, self.PCT_LBL_Y), f"{pct_str} {diff_str}\n\n{range_str}",
-                   fill=(0, 0, 0), font=pct_lbl_font)
+                   fill=(0, 0, 0), font=self.PCT_LBL_FONT)
 
         img.save(rpt_path, "PNG")
 
